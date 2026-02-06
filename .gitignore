@@ -1,2 +1,5 @@
 # Root markdown files
 /*.md
+
+# Python cache
+__pycache__/
