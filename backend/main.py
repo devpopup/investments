@@ -10,7 +10,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
-default_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://investments-rho.vercel.app",
+]
 extra_origins = os.environ.get("CORS_ORIGINS", "").split(",")
 allowed_origins = default_origins + [o.strip() for o in extra_origins if o.strip()]
 
