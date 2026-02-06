@@ -2,56 +2,15 @@ import httpx
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from config import ASSETS, COINGECKO_BASE_URL
-from models.enums import AssetType
+from config import ASSETS
 from services.cache import price_cache, history_cache
 
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
 YAHOO_HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
-async def fetch_crypto_prices(asset_ids: list[str]) -> dict:
-    """Fetch current prices for crypto assets from CoinGecko."""
-    coingecko_ids = [
-        ASSETS[aid]["coingecko_id"] for aid in asset_ids if ASSETS[aid]["type"] == AssetType.CRYPTO
-    ]
-    if not coingecko_ids:
-        return {}
-
-    cache_key = f"crypto_prices_{'_'.join(sorted(coingecko_ids))}"
-    if cache_key in price_cache:
-        return price_cache[cache_key]
-
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            f"{COINGECKO_BASE_URL}/coins/markets",
-            params={
-                "vs_currency": "usd",
-                "ids": ",".join(coingecko_ids),
-                "sparkline": "true",
-                "price_change_percentage": "24h",
-            },
-            timeout=15.0,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-
-    result = {}
-    for coin in data:
-        result[coin["id"]] = {
-            "current_price": coin.get("current_price"),
-            "price_change_24h": coin.get("price_change_24h"),
-            "price_change_percentage_24h": coin.get("price_change_percentage_24h"),
-            "ath": coin.get("ath"),
-            "ath_date": coin.get("ath_date"),
-            "sparkline_7d": coin.get("sparkline_in_7d", {}).get("price", []),
-        }
-    price_cache[cache_key] = result
-    return result
-
-
-async def fetch_traditional_price(ticker: str) -> dict:
-    """Fetch current price for traditional assets from Yahoo Finance chart API."""
+async def fetch_asset_price(ticker: str) -> dict:
+    """Fetch current price from Yahoo Finance chart API."""
     cache_key = f"trad_price_{ticker}"
     if cache_key in price_cache:
         return price_cache[cache_key]
@@ -94,46 +53,7 @@ async def fetch_traditional_price(ticker: str) -> dict:
         return {}
 
 
-async def fetch_crypto_history(coingecko_id: str, days: int = 365) -> pd.DataFrame:
-    """Fetch historical OHLC data from CoinGecko."""
-    cache_key = f"crypto_hist_{coingecko_id}_{days}"
-    if cache_key in history_cache:
-        return history_cache[cache_key]
-
-    try:
-        async with httpx.AsyncClient() as client:
-            if days <= 90:
-                resp = await client.get(
-                    f"{COINGECKO_BASE_URL}/coins/{coingecko_id}/ohlc",
-                    params={"vs_currency": "usd", "days": str(days)},
-                    timeout=15.0,
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close"])
-            else:
-                resp = await client.get(
-                    f"{COINGECKO_BASE_URL}/coins/{coingecko_id}/market_chart",
-                    params={"vs_currency": "usd", "days": str(days)},
-                    timeout=15.0,
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                prices = data.get("prices", [])
-                df = pd.DataFrame(prices, columns=["timestamp", "close"])
-                df["open"] = df["close"]
-                df["high"] = df["close"]
-                df["low"] = df["close"]
-
-        df["timestamp"] = df["timestamp"].astype(int)
-        df = df.sort_values("timestamp").reset_index(drop=True)
-        history_cache[cache_key] = df
-        return df
-    except Exception:
-        return pd.DataFrame()
-
-
-async def fetch_traditional_history(ticker: str, days: int = 365) -> pd.DataFrame:
+async def fetch_yahoo_history(ticker: str, days: int = 365) -> pd.DataFrame:
     """Fetch historical OHLCV data from Yahoo Finance chart API."""
     cache_key = f"trad_hist_{ticker}_{days}"
     if cache_key in history_cache:
@@ -193,10 +113,7 @@ async def fetch_history(asset_id: str, days: int = 365) -> pd.DataFrame:
     if not asset:
         return pd.DataFrame()
 
-    if asset["type"] == AssetType.CRYPTO:
-        return await fetch_crypto_history(asset["coingecko_id"], days)
-    else:
-        return await fetch_traditional_history(asset["yahoo_ticker"], days)
+    return await fetch_yahoo_history(asset["yahoo_ticker"], days)
 
 
 async def fetch_full_history(asset_id: str) -> pd.DataFrame:
@@ -207,4 +124,4 @@ async def fetch_full_history(asset_id: str) -> pd.DataFrame:
 
     # Use Yahoo Finance for all assets — it provides full history
     # (CoinGecko free API limits crypto to 365 days)
-    return await fetch_traditional_history(asset["yahoo_ticker"], days=7300)
+    return await fetch_yahoo_history(asset["yahoo_ticker"], days=7300)

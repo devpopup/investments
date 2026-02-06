@@ -1,12 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from config import ASSETS
-from models.enums import AssetType
 from models.schemas import AssetInfo, PricePoint
-from services.data_fetcher import (
-    fetch_crypto_prices,
-    fetch_traditional_price,
-    fetch_history,
-)
+from services.data_fetcher import fetch_asset_price, fetch_history
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -14,9 +9,6 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 @router.get("", response_model=list[AssetInfo])
 async def get_assets():
     """Get all assets with current prices and 24h change."""
-    crypto_ids = [aid for aid, a in ASSETS.items() if a["type"] == AssetType.CRYPTO]
-    crypto_prices = await fetch_crypto_prices(crypto_ids) if crypto_ids else {}
-
     result = []
     for asset_id, asset in ASSETS.items():
         info = AssetInfo(
@@ -27,18 +19,11 @@ async def get_assets():
             color=asset["color"],
         )
 
-        if asset["type"] == AssetType.CRYPTO:
-            price_data = crypto_prices.get(asset["coingecko_id"], {})
-            info.current_price = price_data.get("current_price")
-            info.price_change_24h = price_data.get("price_change_24h")
-            info.price_change_percentage_24h = price_data.get("price_change_percentage_24h")
-            info.sparkline_7d = price_data.get("sparkline_7d")
-        else:
-            price_data = await fetch_traditional_price(asset["yahoo_ticker"])
-            info.current_price = price_data.get("current_price")
-            info.price_change_24h = price_data.get("price_change_24h")
-            info.price_change_percentage_24h = price_data.get("price_change_percentage_24h")
-            info.sparkline_7d = price_data.get("sparkline_7d")
+        price_data = await fetch_asset_price(asset["yahoo_ticker"])
+        info.current_price = price_data.get("current_price")
+        info.price_change_24h = price_data.get("price_change_24h")
+        info.price_change_percentage_24h = price_data.get("price_change_percentage_24h")
+        info.sparkline_7d = price_data.get("sparkline_7d")
 
         result.append(info)
     return result
@@ -59,12 +44,7 @@ async def get_asset_price(asset_id: str):
         color=asset["color"],
     )
 
-    if asset["type"] == AssetType.CRYPTO:
-        crypto_prices = await fetch_crypto_prices([asset_id])
-        price_data = crypto_prices.get(asset["coingecko_id"], {})
-    else:
-        price_data = await fetch_traditional_price(asset["yahoo_ticker"])
-
+    price_data = await fetch_asset_price(asset["yahoo_ticker"])
     info.current_price = price_data.get("current_price")
     info.price_change_24h = price_data.get("price_change_24h")
     info.price_change_percentage_24h = price_data.get("price_change_percentage_24h")

@@ -6,7 +6,6 @@ ASSETS = {
         "name": "Bitcoin",
         "symbol": "BTC",
         "type": AssetType.CRYPTO,
-        "coingecko_id": "bitcoin",
         "yahoo_ticker": "BTC-USD",
         "color": "#F7931A",
     },
@@ -15,7 +14,6 @@ ASSETS = {
         "name": "Ethereum",
         "symbol": "ETH",
         "type": AssetType.CRYPTO,
-        "coingecko_id": "ethereum",
         "yahoo_ticker": "ETH-USD",
         "color": "#627EEA",
     },
@@ -24,7 +22,6 @@ ASSETS = {
         "name": "Solana",
         "symbol": "SOL",
         "type": AssetType.CRYPTO,
-        "coingecko_id": "solana",
         "yahoo_ticker": "SOL-USD",
         "color": "#9945FF",
     },
@@ -53,8 +50,6 @@ BTC_HALVING_DATES = [
     "2020-05-11",
     "2024-04-20",
 ]
-
-COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
 
 CACHE_TTL_PRICES = 60  # 1 minute
 CACHE_TTL_HISTORY = 3600  # 1 hour

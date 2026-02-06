@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from config import ASSETS, BTC_HALVING_DATES
 from models.enums import AssetType
 from models.schemas import ATHPredictionResponse
-from services.data_fetcher import fetch_full_history, fetch_crypto_prices, fetch_traditional_price
+from services.data_fetcher import fetch_full_history, fetch_asset_price
 from services.technical_analysis import compute_indicators
 
 
@@ -24,12 +24,8 @@ async def predict_ath(asset_id: str) -> ATHPredictionResponse:
     current_ath = float(prices[ath_idx])
 
     # Get current price
-    if asset["type"] == AssetType.CRYPTO:
-        price_data = await fetch_crypto_prices([asset_id])
-        current_price = price_data.get(asset["coingecko_id"], {}).get("current_price", float(prices[-1]))
-    else:
-        price_data = await fetch_traditional_price(asset["yahoo_ticker"])
-        current_price = price_data.get("current_price", float(prices[-1]))
+    price_data = await fetch_asset_price(asset["yahoo_ticker"])
+    current_price = price_data.get("current_price", float(prices[-1]))
 
     # Find historical ATH events (local maxima that set new highs)
     ath_events = find_ath_events(prices, timestamps)
